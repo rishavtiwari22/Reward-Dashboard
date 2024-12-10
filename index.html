@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <script>
+        window.config = {
+            SHEET_API: 'https://api.sheetbest.com/sheets/ba34976c-1fa7-4274-91bd-af7a37ee89a5'
+        }
+    </script>
+    <div id="container">
+        <!-- Sidebar -->
+        <aside id="sidebar">
+            <h2>Admin Panel</h2>
+            <ul>
+                <li><button id="dashboard-btn">Dashboard</button></li>
+                <li><button id="add-expense-btn">Add Expense</button></li>
+                <li><button id="manage-admins-btn">Manage Admins</button></li>
+                <li><button id="sheet-btn"><a href="https://docs.google.com/spreadsheets/d/1IodvGV6DhMuhcp9enRTynJlA3NYFjV677FBYBTl4nSA/edit?gid=0#gid=0" target="_blank">Sheet</a></button></li>
+                <li><button id="logout-btn">Logout</button></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main id="content">
+            <header>
+                <h1>Welcome, Admin</h1>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard-section">
+                <h2>Dashboard Overview</h2>
+                <div id="stats">
+                    <div class="stat-box">
+                        <h3>Total Campuses</h3>
+                        <p id="total-campuses">0</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Total Points</h3>
+                        <p id="total-points">0</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Total Expenses</h3>
+                        <p id="total-expenses">$0</p>
+                    </div>
+                </div>
+                <div id="expense-log">
+                    <h3>Expense Log</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Campus</th>
+                                <th>Date</th>
+                                <th>House</th>
+                                <th>Point</th>
+                                <th>Rewards/Consequences</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expense-table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Add Expense Section -->
+            <section id="add-expense-section" class="hidden">
+                <h2>Add Campus Expense</h2>
+                <form id="expense-form">
+                    <label for="campus">Select Campus:</label>
+                    <select id="campus">
+                        <option value="Jashpur">Jashpur</option>
+                        <option value="Dharmashala">Dharmashala</option>
+                        <option value="Raipur">Raipur</option>
+                        <option value="Pune">Pune</option>
+                        <option value="Dantewada">Dantewada</option>
+                        <option value="Udaipur">Udaipur</option>
+                        <option value="Sarjapur">Sarjapur</option>
+                        <option value="Himachal">Himachal</option>
+                        <option value="Kisanganj">Kisanganj</option>
+                    </select>
+
+                    <label for="house">Select House:</label>
+                    <select id="house">
+                        <option value="Malhar">Malhar</option>
+                        <option value="Bageshree">Bageshree</option>
+                        <option value="Bhairav">Bhairav</option>
+                    </select>
+
+                    <label for="point">Point:</label>
+                    <input type="number" id="point" placeholder="Enter point" required>
+
+                    <label for="rewards">Rewards/Consequences:</label>
+                    <input type="text" id="rewards" placeholder="Enter rewards or consequences" required>
+
+                    <label for="amount">Expense Amount:</label>
+                    <input type="number" id="amount" placeholder="Enter amount" required>
+
+                    <label for="date">Date:</label>
+                    <input type="date" id="date" required>
+
+                    <button type="submit">Add Expense</button>
+                </form>
+            </section>
+
+            <!-- Manage Admins Section -->
+            <section id="manage-admins-section" class="hidden">
+                <h2>Manage Admins</h2>
+                <form id="admin-form">
+                    <label for="new-admin">Add New Admin:</label>
+                    <input type="email" id="new-admin" placeholder="Enter admin email" required>
+                    <button type="submit">Add Admin</button>
+                </form>
+                <div id="admin-list">
+                    <h3>Current Admins:</h3>
+                    <ul id="admins"></ul>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
