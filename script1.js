@@ -1,203 +1,254 @@
-// API Configurations
-const SHEET_API_READ = "https://api.sheetbest.com/sheets/ba34976c-1fa7-4274-91bd-af7a37ee89a5"; 
-const SHEET_API_WRITE = "https://api.sheetbest.com/sheets/ba34976c-1fa7-4274-91bd-af7a37ee89a5";
+const SHEET_API_READ = window.config.SHEET_API;
+const dashboardSection = document.getElementById("dashboard-section");
+const addExpenseSection = document.getElementById("add-expense-section");
+const manageAdminsSection = document.getElementById("manage-admins-section");
 
-// Elements
-const dashboardSection = document.getElementById('dashboard-section');
-const addExpenseSection = document.getElementById('add-expense-section');
-const manageAdminsSection = document.getElementById('manage-admins-section');
+const buttons = {
+  dashboard: document.getElementById("dashboard-btn"),
+  addExpense: document.getElementById("add-expense-btn"),
+  manageAdmins: document.getElementById("manage-admins-btn"),
+  logout: document.getElementById("logout-btn"),
+};
 
-const totalCampusesEl = document.getElementById('total-campuses');
-const totalExpensesEl = document.getElementById('total-expenses');
-const expenseForm = document.getElementById('expense-form');
-const expenseTableBody = document.getElementById('expense-table-body');
+const totalCampusesEl = document.getElementById("total-campuses");
+const totalExpensesEl = document.getElementById("total-expenses");
+const totalPointsEl = document.getElementById("total-points");
+const expenseForm = document.getElementById("expense-form");
+const expenseTableBody = document.getElementById("expense-table-body");
 
-// Data
+let campuses = [
+  "Jashpur",
+  "Dharmashala",
+  "Raipur",
+  "Pune",
+  "Dantewada",
+  "Udaipur",
+  "Sarjapur",
+  "Himachal",
+  "Kisanganj",
+];
 let expenses = [];
+let houses = ["Bhairav", "Malhar", "Bageshree"];
 
-// Fetch Expenses from Sheet API
+function switchSection(section) {
+  [dashboardSection, addExpenseSection, manageAdminsSection].forEach((sec) =>
+    sec.classList.add("hidden")
+  );
+  section.classList.remove("hidden");
+}
+
+function setCurrentDate() {
+  const dateInput = document.getElementById("date");
+  if (dateInput) {
+    const today = new Date().toISOString().split("T")[0];
+    dateInput.value = today;
+  }
+}
+
 async function fetchExpensesFromSheet() {
-    try {
-        const response = await fetch(SHEET_API_READ);
-        if (!response.ok) throw new Error(`Failed to fetch data`);
-        const data = await response.json();
+  try {
+    const response = await fetch(SHEET_API_READ);
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    const data = await response.json();
 
-        // Map response to expenses array with IDs
-        expenses = data.map(exp => ({
-            id: exp.id || Math.random().toString(36).substr(2, 9), 
-            campus: exp.Campus || "Unknown Campus",
-            house: exp.House || "Unknown House",
-            point: parseFloat(exp.Point) || 0,
-            rewards: exp.Rewards || '',
-            amount: parseFloat(exp.Amount) || 0,
-            date: exp.Date || '',
-        }));
+    expenses = data.map((exp, index) => ({
+      index,
+      campus: exp.Campus || "Unknown",
+      house: exp.House || "Unknown",
+      point: exp.Points || 0,
+      rewards: exp.Rewards || "",
+      amount: parseFloat(exp.Amount) || 0,
+      date: exp.Date || "N/A",
+    }));
 
-        renderExpenseTable();
-    } catch (error) {
-        console.error("Error fetching expenses:", error);
-    }
+    updateDashboard();
+  } catch (error) {
+    console.error("Error fetching expenses:", error);
+    alert("Unable to fetch data. Please check the console for more details.");
+  }
 }
 
-// Render Expense Table with Edit/Delete buttons
-function renderExpenseTable() {
-    expenseTableBody.innerHTML = ''; // Clear table
+async function addExpenseToSheet(expense) {
+  try {
+    const formattedExpense = {
+      Campus: expense.campus,
+      House: expense.house,
+      Points: expense.point,
+      Rewards: expense.rewards,
+      Amount: expense.amount.toFixed(2),
+      Date: expense.date,
+    };
 
-    expenses.forEach(exp => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${exp.campus}</td>
-            <td>${exp.date}</td>
-            <td>${exp.house}</td>
-            <td>${exp.point}</td>
-            <td>${exp.rewards}</td>
-            <td>${exp.amount.toFixed(2)}</td>
-            <td class="table-btns">
-                <button class="edit" onclick="editExpense('${exp.id}')">Edit</button>
-                <button class="delete" onclick="deleteExpense('${exp.id}')">Delete</button>
-            </td>
-        `;
-        expenseTableBody.appendChild(row);
+    const response = await fetch(SHEET_API_READ, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify([formattedExpense]),
     });
-}
 
-// Edit Functionality
-// Edit Functionality - Calls PATCH to send only updated fields
-async function editExpense(id) {
-  const expenseToEdit = expenses.find(exp => exp.id === id);
-  if (!expenseToEdit) return alert("Expense not found!");
+    if (!response.ok) throw new Error("Failed to save expense");
 
-  // Populate form fields with current data
-  document.getElementById('campus').value = expenseToEdit.campus;
-  document.getElementById('house').value = expenseToEdit.house;
-  document.getElementById('point').value = expenseToEdit.point;
-  document.getElementById('rewards').value = expenseToEdit.rewards;
-  document.getElementById('amount').value = expenseToEdit.amount;
-  document.getElementById('date').value = expenseToEdit.date;
-
-  // Store expense id in a hidden field for submission later
-  expenseForm.setAttribute('data-edit-id', expenseToEdit.id);
-}
-
-// Handle Expense Form Submission with PATCH
-expenseForm?.addEventListener('submit', async e => {
-  e.preventDefault();
-  const campus = document.getElementById('campus').value;
-  const house = document.getElementById('house').value;
-  const point = parseInt(document.getElementById('point').value);
-  const rewards = document.getElementById('rewards').value;
-  const amount = parseFloat(document.getElementById('amount').value);
-  const date = document.getElementById('date').value;
-  const editId = expenseForm.getAttribute('data-edit-id');
-
-  if (!editId) return alert("Please select an expense to edit");
-
-  // Determine the row index for the PATCH request
-  const expenseIndex = expenses.findIndex(exp => exp.id === editId);
-  if (expenseIndex === -1) return alert("Expense not found!");
-
-  const rowNumber = expenseIndex + 2; // Adjust index (Google Sheets uses 1-based indexing)
-
-  try {
-      const response = await fetch(
-          `https://api.sheetbest.com/sheets/cf969697-682a-40e3-bad4-d54803eeeacf/${rowNumber}`,
-          {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                  Campus: campus,
-                  House: house,
-                  Point: point,
-                  Rewards: rewards,
-                  Amount: amount,
-                  Date: date,
-              }),
-          }
-      );
-
-      const data = await response.json();
-      console.log("Updated row:", data);
-
-      if (!response.ok) throw new Error("Failed to update expense");
-
-      // Update local UI state
-      expenses[expenseIndex] = { ...expenses[expenseIndex], campus, house, point, rewards, amount, date };
-      renderExpenseTable();
-      alert("Expense updated successfully!");
-      expenseForm.reset();
-      expenseForm.removeAttribute('data-edit-id');
+    alert("Expense added successfully!");
+    await fetchExpensesFromSheet();
   } catch (error) {
-      console.error("Error updating expense:", error);
-      alert("Error updating expense!");
-  }
-});
-
-
-// Delete Functionality
-async function deleteExpense(id) {
-  try {
-      // Find the index of the expense row
-      const expenseIndex = expenses.findIndex(exp => exp.id === id);
-      
-      if (expenseIndex === -1) {
-          alert('Expense not found!');
-          return;
-      }
-
-      // Row numbers are 0-indexed in Google Sheets, map to 1-indexed row by adding +1
-      const rowNumber = expenseIndex + 2; // Sheet rows are 1-indexed, so +1 to adjust
-
-      const response = await fetch(
-          `https://api.sheetbest.com/sheets/cf969697-682a-40e3-bad4-d54803eeeacf/${rowNumber}`,
-          {
-              method: "DELETE",
-              headers: { "Content-Type": "application/json" },
-          }
-      );
-
-      const data = await response.json();
-      console.log("Response from delete API:", data);
-
-      if (!response.ok) throw new Error("Error deleting row!");
-
-      // Update expenses array and re-render table
-      expenses.splice(expenseIndex, 1); // Remove from frontend array
-      renderExpenseTable();
-      alert("Expense deleted successfully!");
-  } catch (error) {
-      console.error("Error deleting expense:", error);
-      alert("Error deleting expense!");
+    console.error("Error:", error);
+    alert("Failed to add the expense!");
   }
 }
 
+async function updateExpenseInSheet(expense, index) {
+  try {
+    const formattedExpense = {
+      Campus: expense.campus,
+      House: expense.house,
+      Points: expense.point,
+      Rewards: expense.rewards,
+      Amount: expense.amount.toFixed(2),
+      Date: expense.date,
+    };
 
-// Handle Expense Form Submission
-expenseForm?.addEventListener('submit', async e => {
-    e.preventDefault();
-    const campus = document.getElementById('campus').value;
-    const house = document.getElementById('house').value;
-    const point = parseInt(document.getElementById('point').value);
-    const rewards = document.getElementById('rewards').value;
-    const amount = parseFloat(document.getElementById('amount').value);
-    const date = document.getElementById('date').value;
-    const editId = expenseForm.getAttribute('data-edit-id');
+    const response = await fetch(`${SHEET_API_READ}/${index}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formattedExpense),
+    });
 
-    const newExpense = { campus, house, point, rewards, amount, date };
+    if (!response.ok) throw new Error("Failed to update expense");
 
-    if (editId) {
-        // Edit existing expense
-        const index = expenses.findIndex(exp => exp.id === editId);
-        expenses[index] = { ...newExpense, id: editId };
-    } else {
-        // Create new expense
-        newExpense.id = Math.random().toString(36).substr(2, 9);
-        expenses.push(newExpense);
-    }
+    alert("Expense updated successfully!");
+    await fetchExpensesFromSheet();
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Failed to update the expense!");
+  }
+}
 
-    renderExpenseTable();
-    expenseForm.reset();
-    expenseForm.removeAttribute('data-edit-id');
+async function deleteExpenseFromSheet(index) {
+  try {
+    const response = await fetch(`${SHEET_API_READ}/${index}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) throw new Error("Failed to delete expense");
+
+    alert("Expense deleted successfully!");
+    await fetchExpensesFromSheet();
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Failed to delete the expense!");
+  }
+}
+
+function updateDashboard() {
+  totalCampusesEl.textContent = campuses.length;
+  totalExpensesEl.textContent = expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2);
+  
+  totalPointsEl.textContent = expenses.reduce((sum, exp) => sum + Number(exp.point), 0);
+
+  expenseTableBody.innerHTML = "";
+  
+  expenses.forEach((exp) => {
+    const row = `<tr>
+                  <td>${exp.campus}</td>
+                  <td>${exp.date}</td>
+                  <td>${exp.house}</td>
+                  <td>${exp.point}</td>
+                  <td>${exp.rewards}</td>
+                  <td>${exp.amount.toFixed(2)}</td>
+                  <td><button onclick="editExpense(${JSON.stringify(exp).replace(/"/g, '&quot;')})">Edit</button></td>
+                  <td><button onclick="deleteExpenseFromSheet(${exp.index})">Delete</button></td>
+                </tr>`;
+    
+    expenseTableBody.innerHTML += row;
+  });
+}
+
+function editExpense(expense) {
+  const updatedCampus = prompt("Edit Campus:", expense.campus) || expense.campus;
+  const updatedHouse = prompt("Edit House:", expense.house) || expense.house;
+  const updatedPoint = parseFloat(prompt("Edit Point:", expense.point)) || expense.point;
+  const updatedRewards = prompt("Edit Rewards:", expense.rewards) || expense.rewards;
+  const updatedAmount = parseFloat(prompt("Edit Amount:", expense.amount)) || expense.amount;
+  const updatedDate = prompt("Edit Date (YYYY-MM-DD):", expense.date) || expense.date;
+
+  if (confirm("Are you sure you want to save the changes?")) {
+    const index = expense.index;
+    const updatedExpense = {
+      campus: updatedCampus,
+      house: updatedHouse,
+      point: updatedPoint,
+      rewards: updatedRewards,
+      amount: updatedAmount,
+      date: updatedDate,
+    };
+
+    updateExpenseInSheet(updatedExpense, index);
+    
+    fetchExpensesFromSheet();
+  } else {
+    console.log("Edit canceled by the user.");
+  }
+}
+
+expenseForm?.addEventListener("submit", async (e) => {
+   e.preventDefault();
+
+   const campusInput = document.getElementById("campus");
+   const houseInput = document.getElementById("house");
+   const pointInput = document.getElementById("point");
+   const rewardsInput = document.getElementById("rewards");
+   const amountInput = document.getElementById("amount");
+
+   if (!campusInput.value || !houseInput.value || isNaN(pointInput.value) || isNaN(amountInput.value)) {
+     alert('Please fill all fields correctly!');
+     return;
+   }
+
+   const campus = campusInput.value;
+   const house = houseInput.value;
+   const point = parseFloat(pointInput.value);
+   const rewards = rewardsInput.value;
+   const amount = parseFloat(amountInput.value);
+   const dateInput = document.getElementById('date').value;
+
+   const newExpense = { campus, house, point, rewards, amount, date: dateInput };
+
+   if (expenseForm.dataset.editingIndex !== undefined) {
+     await updateExpenseInSheet(newExpense, parseInt(expenseForm.dataset.editingIndex));
+     delete expenseForm.dataset.editingIndex; 
+     setCurrentDate();
+     expenseForm.reset();
+   } else {
+     await addExpenseToSheet(newExpense);
+   }
 });
 
-// Initialize Dashboard
+function populateHouseDropdown() {
+   const houseSelect = document.getElementById('house');
+  
+   if (!houseSelect) return;
+
+   houseSelect.innerHTML = "";
+  
+   houses.forEach((house) => {
+     const option = document.createElement('option');
+     option.value = house;
+     option.textContent = house;
+     houseSelect.appendChild(option);
+   });
+}
+
+buttons.dashboard?.addEventListener('click', () =>
+   switchSection(dashboardSection)
+);
+buttons.addExpense?.addEventListener('click', () => {
+   switchSection(addExpenseSection);
+   setCurrentDate();
+});
+buttons.manageAdmins?.addEventListener('click', async () => {
+   switchSection(manageAdminsSection);
+   await fetchExpensesFromSheet();
+});
+
+populateHouseDropdown();
 fetchExpensesFromSheet();
+switchSection(dashboardSection);
