@@ -1,8 +1,13 @@
-const SHEET_API_READ = window.config.SHEET_API;
+
+let API_URL = "https://script.google.com/macros/s/AKfycbwpN5jcuFhW1zXp5ViDPADi1oSO_KjYQ8tw7V3H8XGQ4tw8h0y3wmidIaeR7G5B18pk/exec";
+let SHEET_URL = "https://script.google.com/macros/s/AKfycby_uM1wXprFUEc03eONbWBtZecuNTW5ujMUN7LFrL34P2sMyAYu81kmgG_0W0YKqdOi/exec";
+
+
 const dashboardSection = document.getElementById("dashboard-section");
 const addExpenseSection = document.getElementById("add-expense-section");
 const manageAdminsSection = document.getElementById("manage-admins-section");
 const about = JSON.parse(localStorage.getItem('user'));
+console.log('About - ',about);  
 
 const buttons = {
   dashboard: document.getElementById("dashboard-btn"),
@@ -28,8 +33,21 @@ let campuses = [
   "Himachal",
   "Kisanganj",
 ];
+
 let expenses = [];
 let houses = ["Bhairav", "Malhar", "Bageshree"];
+
+
+async function fetchSheetRecords() {
+  const response = await fetch(`${SHEET_URL}?action=read`, {
+    method: "GET",
+  });
+
+  const data = await response.json();
+  console.log('fetchRecords - ', data);
+  return data;
+}
+
 
 function switchSection(section) {
   [dashboardSection, addExpenseSection, manageAdminsSection].forEach((sec) =>
@@ -46,20 +64,21 @@ function setCurrentDate() {
   }
 }
 
+
+
 async function fetchExpensesFromSheet() {
   try {
-    const response = await fetch('https://api.sheetbest.com/sheets/ba34976c-1fa7-4274-91bd-af7a37ee89a5/tabs/Expenses ');
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    const data = await response.json();
-    console.log("data - ", data);
+    const data = await fetchSheetRecords();
+    console.log('data 123 :',data);
+    
     expenses = data.map((exp, index) => ({
       index,
-      campus: exp.Campus || "Unknown",
-      house: exp.House || "Unknown",
-      point: exp.Points || 0,
-      rewards: exp.Rewards || "",
-      amount: parseFloat(exp.Amount) || 0,
-      date: exp.Date || "N/A",
+      campus: exp.campus || "Unknown",
+      house: exp.house || "Unknown",
+      point: exp.points || 0,
+      rewards: exp.rewards || "",
+      amount: parseFloat(exp.amount) || 0,
+      date: exp.date || "N/A",
     }));
 
     updateDashboard();
@@ -72,12 +91,12 @@ async function fetchExpensesFromSheet() {
 async function addExpenseToSheet(expense) {
   try {
     const formattedExpense = {
-      Campus: expense.campus,
-      House: expense.house,
-      Points: expense.point,
-      Rewards: expense.rewards,
-      Amount: expense.amount.toFixed(2),
-      Date: expense.date,
+      campus: expense.campus,
+      house: expense.house,
+      points: expense.point,
+      rewards: expense.rewards,
+      amount: expense.amount.toFixed(2),
+      date: expense.date,
     };
     const allow_user = JSON.parse(localStorage.getItem('user'));
     console.log('allow_user.isAdmin - ',allow_user.isAdmin);
@@ -87,7 +106,7 @@ async function addExpenseToSheet(expense) {
       return;
     }
 
-    const response = await fetch(SHEET_API_READ, {
+    const response = await fetch(SHEET_API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify([formattedExpense]),
@@ -114,7 +133,7 @@ async function updateExpenseInSheet(expense, index) {
       Date: expense.date,
     };
 
-    const response = await fetch(`${SHEET_API_READ}/${index}`, {
+    const response = await fetch(`${SHEET_API}/${index}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formattedExpense),
@@ -132,7 +151,7 @@ async function updateExpenseInSheet(expense, index) {
 
 async function deleteExpenseFromSheet(index) {
   try {
-    const response = await fetch(`${SHEET_API_READ}/${index}`, {
+    const response = await fetch(`${SHEET_API}/${index}`, {
       method: "DELETE",
     });
 
@@ -145,6 +164,16 @@ async function deleteExpenseFromSheet(index) {
     alert("Failed to delete the expense!");
   }
 }
+
+
+
+
+
+
+
+
+
+
 
 function updateDashboard() {
   totalCampusesEl.textContent = campuses.length;
@@ -284,7 +313,6 @@ switchSection(dashboardSection);
 
 
 
-
 // ======================================================================================
 
 
@@ -310,7 +338,7 @@ createAdmin.addEventListener("click", (e) => {
 
     async function getData() {
 
-      const response_admin = await fetch('https://api.sheetbest.com/sheets/83ddcbba-afe9-4a97-8201-f3c1c5740e97/tabs/Admin');
+      const response_admin = await fetch(ADMIN_API);
       const data_admin = await response_admin.json();
       console.log('data_admin:', data_admin);
 
@@ -329,7 +357,7 @@ createAdmin.addEventListener("click", (e) => {
         alert('Making Admin to user!')
       }
 
-      fetch(`https://api.sheetbest.com/sheets/83ddcbba-afe9-4a97-8201-f3c1c5740e97/tabs/Admin/${findUser}`, {
+      fetch(`${ADMIN_API}/${findUser}`, {
         method: "PATCH",
         mode: "cors",
         headers: {
@@ -356,7 +384,7 @@ createAdmin.addEventListener("click", (e) => {
 async function showAdmins() {
   const admins = document.getElementById('admins');
 
-  const response_admin = await fetch('https://api.sheetbest.com/sheets/83ddcbba-afe9-4a97-8201-f3c1c5740e97/tabs/Admin');
+  const response_admin = await fetch(ADMIN_API);
   const data_admin = await response_admin.json();
   const allAdmins = data_admin.filter(ele => ele.isAdmin === 'TRUE');
   console.log('allAdmins - ',allAdmins);
@@ -383,7 +411,7 @@ remove_admin.addEventListener('click', (e) => {
   console.log(e.target.dataset.email);
   async function getData() {
 
-    const response_admin = await fetch('https://api.sheetbest.com/sheets/83ddcbba-afe9-4a97-8201-f3c1c5740e97/tabs/Admin');
+    const response_admin = await fetch(ADMIN_API);
     const data_admin = await response_admin.json();
     const email = e.target.dataset.email;
     console.log('data_admin:', data_admin);
@@ -410,7 +438,7 @@ remove_admin.addEventListener('click', (e) => {
       alert('Removing Admin!')
     }
 
-    fetch(`https://api.sheetbest.com/sheets/83ddcbba-afe9-4a97-8201-f3c1c5740e97/tabs/Admin/${findUser}`, {
+    fetch(`${ADMIN_API}/${findUser}`, {
       method: "PATCH",
       mode: "cors",
       headers: {
@@ -433,6 +461,4 @@ remove_admin.addEventListener('click', (e) => {
 
 const admin_name = document.getElementById('admin-name');
 console.log('About - ',about);
-admin_name.innerText = `Welcome, ${about.fullName}`;
-
-
+admin_name.innerText = `Welcome, ${about.username}`;
