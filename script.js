@@ -106,7 +106,7 @@ async function addExpenseToSheet(expense) {
       return;
     }
 
-    const response = await fetch(SHEET_API, {
+    const response = await fetch(SHEET_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify([formattedExpense]),
