@@ -1,36 +1,44 @@
-let API_URL = 'https://script.google.com/macros/s/AKfycbwpN5jcuFhW1zXp5ViDPADi1oSO_KjYQ8tw7V3H8XGQ4tw8h0y3wmidIaeR7G5B18pk/exec';
-
+let API_URL = 'https://script.google.com/macros/s/AKfycbyjhSh7ByLSW27Kgk3JL4nn8kolbEYfY9yrF5HYrUrijDFxm_TETY7SIHiC7YTtUyg/exec';
+let ADMIN = 'https://sheetdb.io/api/v1/4jddbeyi3ewy8';
 
 async function fetchRecords() {
-  const response = await fetch(`${API_URL}?action=read`, {
-    method: "GET",
-  });
-
+  const response = await fetch(`${ADMIN}`);
   const data = await response.json();
-  console.log('fetchRecords - ', data);
+  console.log('Admin data -', data);
   return data;
 }
 fetchRecords();
 
 
 async function createRecord(fullName, email, password, isAdmin) {
-  const response = await fetch(API_URL, {
-    method: "POST",
-    mode: 'no-cors',
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      action: "create",
-      fullName: fullName,
-      email: email,
-      password: password,
-      isAdmin: isAdmin,
-    }),
-  });
 
-  const result = await response.text();
-  console.log(result);
+  let obj = {
+    fullName:	fullName,
+    email:	email,
+    password: password,	
+    isAdmin: isAdmin,
+  }
+
+  const response = await fetch(`${ADMIN}`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ data: [obj] }),
+  }).catch(err => {
+    console.error('Fetch error:', err);
+  });
+  
+  if (!response.ok) {
+    console.error('Response error:', response.statusText);
+    return;
+  }
+  
+  const data = await response.json();
+  console.log('Response data:', data);
+  return data;
+  
 }
 
 
@@ -48,20 +56,22 @@ document.querySelector("#signupBtn").addEventListener("click", async (e) => {
   }
 
   const verifyEmails = await fetchRecords();
+  console.log('verifyEmails - ', verifyEmails);
+  
   const allEmails = verifyEmails.map(ele => ele.email === email);
 
   if (allEmails.includes(true)) {
     alert('User already exist!')
     return;
   }
-
   if (!username || !email || !password) {
     alert("Please enter all the details");
     return;
   }
-
-  createRecord(username, email, password, false);
-  localStorage.setItem('user', JSON.stringify({ username, email, password, isAdmin: false }));
+  alert('User created successfully!');
+  let isAdmin = "false";
+  await createRecord(username, email, password, isAdmin);
+  localStorage.setItem('user', JSON.stringify({ username, email, password, isAdmin: false}));
   fetchRecords();
   window.location.href = 'main.html';
 });
@@ -94,15 +104,15 @@ document.getElementById('loginBtn').addEventListener('click', async (e) => {
   console.log('data[index] - ', data[index]);
 
   const obj = {
-    username:data[index].fullName,
-    email:data[index].email,
-    password:data[index].password, 
-    isAdmin:data[index].isAdmin
+    username: data[index].fullName,
+    email: data[index].email,
+    password: data[index].password,
+    isAdmin: data[index].isAdmin
   }
 
   localStorage.setItem('user', JSON.stringify(obj));
   console.log('User :', user);
-  
+
   if (user) {
     window.location.href = 'main.html';
   } else {

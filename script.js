@@ -1,7 +1,7 @@
 
 let API_URL = "https://script.google.com/macros/s/AKfycbwpN5jcuFhW1zXp5ViDPADi1oSO_KjYQ8tw7V3H8XGQ4tw8h0y3wmidIaeR7G5B18pk/exec";
 let SHEET_URL = "https://script.google.com/macros/s/AKfycby_uM1wXprFUEc03eONbWBtZecuNTW5ujMUN7LFrL34P2sMyAYu81kmgG_0W0YKqdOi/exec";
-
+let API = "https://sheetdb.io/api/v1/d2ks52w9bg6rz";
 
 const dashboardSection = document.getElementById("dashboard-section");
 const addExpenseSection = document.getElementById("add-expense-section");
@@ -38,17 +38,6 @@ let expenses = [];
 let houses = ["Bhairav", "Malhar", "Bageshree"];
 
 
-async function fetchSheetRecords() {
-  const response = await fetch(`${SHEET_URL}?action=read`, {
-    method: "GET",
-  });
-
-  const data = await response.json();
-  console.log('fetchRecords - ', data);
-  return data;
-}
-
-
 function switchSection(section) {
   [dashboardSection, addExpenseSection, manageAdminsSection].forEach((sec) =>
     sec.classList.add("hidden")
@@ -64,6 +53,14 @@ function setCurrentDate() {
   }
 }
 
+async function fetchSheetRecords() {
+  const response = await fetch(`${SHEET_URL}?action=read`, {
+    method: "GET",
+  });
+  const data = await response.json();
+  console.log('fetchRecords - ', data);
+  return data;
+}
 
 
 async function fetchExpensesFromSheet() {
@@ -89,7 +86,7 @@ async function fetchExpensesFromSheet() {
 }
 
 async function addExpenseToSheet(expense) {
-  try {
+  // try {
     const formattedExpense = {
       campus: expense.campus,
       house: expense.house,
@@ -105,64 +102,117 @@ async function addExpenseToSheet(expense) {
       alert('Sorry, You are not admin!')
       return;
     }
+    fetch(`${API}`, {
+      method: 'POST',
+      headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+          data: [
+              {
+                "campus": `${expense.campus}`,
+                "house": `${expense.house}`,
+                "points": `${expense.point}`,
+                "rewards": `${expense.rewards}`,
+                "amount": `${expense.amount.toFixed(2)}`,
+                "date": `${expense.date}`,
+              }
+            ]
+        })
+    })
+    .then((response) => response.json())
+    .then((data) => console.log(data));
+  
 
+<<<<<<< HEAD
     const response = await fetch(SHEET_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify([formattedExpense]),
     });
+=======
+  //   const response = await fetch(SHEET_API, {
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json" },
+  //     body: JSON.stringify([formattedExpense]),
+  //   });
+>>>>>>> 3a24dec (Everything is working properly)
 
-    if (!response.ok) throw new Error("Failed to save expense");
+  //   if (!response.ok) throw new Error("Failed to save expense");
 
-    alert("Expense added successfully!");
-    await fetchExpensesFromSheet();
-  } catch (error) {
-    console.error("Error:", error);
-    alert("Failed to add the expense!");
-  }
+  //   alert("Expense added successfully!");
+  //   await fetchExpensesFromSheet();
+  // } catch (error) {
+  //   console.error("Error:", error);
+  //   alert("Failed to add the expense!");
+  // }
 }
 
-async function updateExpenseInSheet(expense, index) {
-  try {
-    const formattedExpense = {
-      Campus: expense.campus,
-      House: expense.house,
-      Points: expense.point,
-      Rewards: expense.rewards,
-      Amount: expense.amount.toFixed(2),
-      Date: expense.date,
-    };
+function updateExpenseInSheet(expense, index) {
 
-    const response = await fetch(`${SHEET_API}/${index}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formattedExpense),
-    });
+  const formattedExpense = {
+    Campus: expense.campus,
+    House: expense.house,
+    Points: expense.point,
+    Rewards: expense.rewards,
+    Amount: expense.amount.toFixed(2),
+    Date: expense.date,
+  };
 
-    if (!response.ok) throw new Error("Failed to update expense");
+  fetch(`${API}/id/${index}`, {
+    method: 'PATCH',
+    headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        data: {
+          "Campus": expense.campus,
+          "House": expense.house,
+          "Points": expense.point,
+          "Rewards": expense.rewards,
+          "Amount": expense.amount.toFixed(2),
+          "Date": expense.date,
 
-    alert("Expense updated successfully!");
-    await fetchExpensesFromSheet();
-  } catch (error) {
-    console.error("Error:", error);
-    alert("Failed to update the expense!");
-  }
+        }
+    })
+  })
+    .then((response) => response.json())
+    .then((data) => console.log(data));
+  
+  //   alert('Update index :',index);
+
+  //   const response = await fetch(`${API}/id/${index}`, {
+  //     method: "PATCH",
+  //     headers: {
+  //       'Accept': 'application/json',
+  //       "Content-Type": "application/json" },
+  //     body: JSON.stringify(formattedExpense),
+  //   });
+
+  //   if (!response.ok) throw new Error("Failed to update expense");
+
+  //   alert("Expense updated successfully!");
+  //   await fetchExpensesFromSheet();
+  // } catch (error) {
+  //   console.error("Error:", error);
+  //   alert("Failed to update the expense!");
+  // }
 }
 
-async function deleteExpenseFromSheet(index) {
-  try {
-    const response = await fetch(`${SHEET_API}/${index}`, {
-      method: "DELETE",
-    });
+function deleteExpenseFromSheet(index) {
+  console.log('Index delete - ',index);
+  fetch(`${API}/id/${index+1}`, {
+    method: 'DELETE',
+    headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    }
+})
+  .then((response) => response.json())
+  .then((data) => console.log(data));
 
-    if (!response.ok) throw new Error("Failed to delete expense");
-
-    alert("Expense deleted successfully!");
-    await fetchExpensesFromSheet();
-  } catch (error) {
-    console.error("Error:", error);
-    alert("Failed to delete the expense!");
-  }
 }
 
 
@@ -204,7 +254,7 @@ function updateDashboard() {
                 </tr>`;
 
     expenseTableBody.innerHTML += row;
-  });
+  }); 
 }
 
 function editExpense(expense) {
@@ -231,7 +281,28 @@ function editExpense(expense) {
       date: updatedDate,
     };
 
-    updateExpenseInSheet(updatedExpense, index);
+    // updateExpenseInSheet(updatedExpense, index);
+
+    fetch(`https://sheetdb.io/api/v1/58f61be4dda40/id/${index}`, {
+      method: 'PATCH',
+      headers: {
+          'Accept': 'application/json', 
+          'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({
+          data: {
+              'Campus': updatedCampus,
+              'House': updatedHouse,
+              'Point': updatedPoint,
+              'Rewards': updatedRewards,
+              'Amount': updatedAmount,
+              'Date': updatedDate,
+          }
+      })
+    })
+    .then((response) => response.json()) 
+    .then((data) => console.log(data)); 
+  
 
     fetchExpensesFromSheet();
   } else {
@@ -338,7 +409,7 @@ createAdmin.addEventListener("click", (e) => {
 
     async function getData() {
 
-      const response_admin = await fetch(ADMIN_API);
+      const response_admin = await fetch(API);
       const data_admin = await response_admin.json();
       console.log('data_admin:', data_admin);
 
@@ -357,7 +428,7 @@ createAdmin.addEventListener("click", (e) => {
         alert('Making Admin to user!')
       }
 
-      fetch(`${ADMIN_API}/${findUser}`, {
+      fetch(`${API}/${findUser}`, {
         method: "PATCH",
         mode: "cors",
         headers: {
@@ -384,7 +455,7 @@ createAdmin.addEventListener("click", (e) => {
 async function showAdmins() {
   const admins = document.getElementById('admins');
 
-  const response_admin = await fetch(ADMIN_API);
+  const response_admin = await fetch(API);
   const data_admin = await response_admin.json();
   const allAdmins = data_admin.filter(ele => ele.isAdmin === 'TRUE');
   console.log('allAdmins - ',allAdmins);
@@ -411,7 +482,7 @@ remove_admin.addEventListener('click', (e) => {
   console.log(e.target.dataset.email);
   async function getData() {
 
-    const response_admin = await fetch(ADMIN_API);
+    const response_admin = await fetch(API);
     const data_admin = await response_admin.json();
     const email = e.target.dataset.email;
     console.log('data_admin:', data_admin);
@@ -438,7 +509,7 @@ remove_admin.addEventListener('click', (e) => {
       alert('Removing Admin!')
     }
 
-    fetch(`${ADMIN_API}/${findUser}`, {
+    fetch(`${API}/${findUser}`, {
       method: "PATCH",
       mode: "cors",
       headers: {
