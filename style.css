@@ -152,6 +152,15 @@ header button:hover {
     color: #2c3e50;
 }
 
+@media (max-width: 800px) {
+    #expense-log table {
+        display: inline-block;
+        overflow-x: auto;
+    }
+    
+}
+
+
 /* Form Styling */
 form {
     display: flex;
@@ -273,6 +282,15 @@ form button:hover {
 
 .delete-btn:hover {
     background-color: #d32f2f;
+}
+
+.logo{
+    height: 80px;
+}
+@media (max-width: 800px) {
+    .logo{
+        height: 30px;
+    }
 }
 
 

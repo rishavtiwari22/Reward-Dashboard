@@ -1,31 +1,22 @@
-let API_URL = 'https://script.google.com/macros/s/AKfycbyjhSh7ByLSW27Kgk3JL4nn8kolbEYfY9yrF5HYrUrijDFxm_TETY7SIHiC7YTtUyg/exec';
-let ADMIN = 'https://sheetdb.io/api/v1/4jddbeyi3ewy8';
+let ADMIN = 'http://localhost:3000/api';
 
 async function fetchRecords() {
-  const response = await fetch(`${ADMIN}`);
+  const response = await fetch(`${ADMIN}/getAll`);
   const data = await response.json();
-  console.log('Admin data -', data);
+  console.log('Mongo data -', data);
   return data;
 }
 fetchRecords();
 
 
-async function createRecord(fullName, email, password, isAdmin) {
+async function createRecord(name, email, password, isAdmin) {
 
-  let obj = {
-    fullName:	fullName,
-    email:	email,
-    password: password,	
-    isAdmin: isAdmin,
-  }
-
-  const response = await fetch(`${ADMIN}`, {
+  const response = await fetch(`${ADMIN}/post`, {
     method: 'POST',
     headers: {
-      'Accept': 'application/json',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ data: [obj] }),
+    body: JSON.stringify({name, email, password, isAdmin}),
   }).catch(err => {
     console.error('Fetch error:', err);
   });
@@ -36,6 +27,7 @@ async function createRecord(fullName, email, password, isAdmin) {
   }
   
   const data = await response.json();
+  localStorage.setItem('user', JSON.stringify({ name, email, password, isAdmin }));
   console.log('Response data:', data);
   return data;
   
@@ -71,7 +63,6 @@ document.querySelector("#signupBtn").addEventListener("click", async (e) => {
   alert('User created successfully!');
   let isAdmin = "false";
   await createRecord(username, email, password, isAdmin);
-  localStorage.setItem('user', JSON.stringify({ username, email, password, isAdmin: false}));
   fetchRecords();
   window.location.href = 'main.html';
 });
@@ -101,18 +92,8 @@ document.getElementById('loginBtn').addEventListener('click', async (e) => {
       break;
     }
   }
-  console.log('data[index] - ', data[index]);
 
-  const obj = {
-    username: data[index].fullName,
-    email: data[index].email,
-    password: data[index].password,
-    isAdmin: data[index].isAdmin
-  }
-
-  localStorage.setItem('user', JSON.stringify(obj));
-  console.log('User :', user);
-
+  localStorage.setItem('user', JSON.stringify({ name: data[index].name, email: data[index].email, password: data[index].password, isAdmin: data[index].isAdmin }));
   if (user) {
     window.location.href = 'main.html';
   } else {

@@ -1,8 +1,6 @@
 
-let API_URL = "https://script.google.com/macros/s/AKfycbwpN5jcuFhW1zXp5ViDPADi1oSO_KjYQ8tw7V3H8XGQ4tw8h0y3wmidIaeR7G5B18pk/exec";
-let SHEET_URL = "https://script.google.com/macros/s/AKfycby_uM1wXprFUEc03eONbWBtZecuNTW5ujMUN7LFrL34P2sMyAYu81kmgG_0W0YKqdOi/exec";
-let API = "https://sheetdb.io/api/v1/d2ks52w9bg6rz";
-let ADMIN = "https://sheetdb.io/api/v1/4jddbeyi3ewy8";
+let LOGIN_API = "http://localhost:3000/api";
+let DATA_API = "http://localhost:3001/api";
 
 const dashboardSection = document.getElementById("dashboard-section");
 const addExpenseSection = document.getElementById("add-expense-section");
@@ -55,74 +53,68 @@ function setCurrentDate() {
 }
 
 async function fetchSheetRecords() {
-    const response = await fetch(`${SHEET_URL}?action=read`, {
-        method: "GET",
-    });
+    const response = await fetch(`${DATA_API}/getAll`);
     const data = await response.json();
-    console.log('fetchRecords - ', data);
+    console.log('fetchRecords 100 - ', data);
+    return data;
+}
+
+async function fetchUser() {
+    const response = await fetch(`${LOGIN_API}/getAll`);
+    const data = await response.json();
+    console.log('fetchRecords 100 - ', data);
     return data;
 }
 
 
-async function fetchExpensesFromSheet() {
-    try {
-        const data = await fetchSheetRecords();
-        console.log('data 123 :', data);
-
-        expenses = data.map((exp, index) => ({
-            index,
-            campus: exp.campus || "Unknown",
-            house: exp.house || "Unknown",
-            point: exp.points || 0,
-            rewards: exp.rewards || "",
-            amount: parseFloat(exp.amount) || 0,
-            date: exp.date || "N/A",
-        }));
-
-        updateDashboard();
-    } catch (error) {
-        console.error("Error fetching expenses:", error);
-        alert("Unable to fetch data. Please check the console for more details.");
-    }
-}
-
-
-
 async function addExpenseToSheet(expense) {
     try {
-        const formattedExpense = {
-            Campus: expense.campus,
-            House: expense.house,
-            Points: expense.point,
-            Rewards: expense.rewards,
-            Amount: expense.amount.toFixed(2),
-            Date: expense.date,
-        };
+        const currentDate = new Date(expense.date);
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0'); 
+        const year = currentDate.getFullYear();
+        const formattedDate = `${day}-${month}-${year}`;
+
+        console.log('Submitting expense:', {
+            campus: expense.campus,
+            date: formattedDate,
+            house: expense.house,
+            point: expense.point,
+            rewards: expense.rewards,
+            amount: expense.amount
+        });
+
         const allow_user = JSON.parse(localStorage.getItem('user'));
         if (allow_user.isAdmin === 'FALSE') {
             alert('Sorry, You are not an admin!');
             return;
         }
 
-        const response = await fetch(API, {
+        const response = await fetch(`${DATA_API}/post`, {
             method: 'POST',
             headers: {
-                'Accept': 'application/json',
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                data: [formattedExpense],
+                campus: expense.campus,
+                date: formattedDate,
+                house: expense.house,
+                point: Number(expense.point),
+                rewards: expense.rewards,
+                amount: Number(expense.amount)
             }),
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to save expense. Status code: ${response.status}`);
+            const errorData = await response.json();
+            console.error('Server error response:', errorData);
+            throw new Error(`Failed to save expense. ${errorData.message}`);
         }
 
         const result = await response.json();
         console.log('Expense added successfully:', result);
-        await fetchExpensesFromSheet();
         alert('Expense added successfully!');
+        await updateDashboard();
     } catch (error) {
         console.error('Error adding expense:', error);
         alert('Failed to add the expense. Please try again.');
@@ -130,99 +122,122 @@ async function addExpenseToSheet(expense) {
 }
 
 
-function updateDashboard() {
-    totalCampusesEl.textContent = campuses.length;
-    totalExpensesEl.textContent = expenses
-        .reduce((sum, exp) => sum + exp.amount, 0)
-        .toFixed(2);
+async function updateDashboard() {
+    try {
+        const expenses = await fetchSheetRecords();
+        
+        totalCampusesEl.textContent = campuses.length;
+        totalExpensesEl.textContent = expenses
+            .reduce((sum, exp) => sum + Number(exp.amount), 0)
+            .toFixed(2);
 
-    totalPointsEl.textContent = expenses.reduce(
-        (sum, exp) => sum + Number(exp.point),
-        0
-    );
+        totalPointsEl.textContent = expenses.reduce(
+            (sum, exp) => sum + Number(exp.point),
+            0
+        );
 
-    expenseTableBody.innerHTML = "";
+        expenseTableBody.innerHTML = "";
 
-    expenses.forEach((exp) => {
-        const row = `<tr>
-                  <td>${exp.campus}</td>
-                  <td>${exp.date}</td>
-                  <td>${exp.house}</td>
-                  <td>${exp.point}</td>
-                  <td>${exp.rewards}</td>
-                  <td>${exp.amount.toFixed(2)}</td>
-                  <td><button class='edit-btn' onclick="editExpense(${JSON.stringify(
-            exp
-        ).replace(/"/g, "&quot;")})">Edit</button></td>
-                  <td><button class='delete-btn' onclick="deleteExpenseFromSheet(${JSON.stringify(
-                    exp
-                ).replace(/"/g, "&quot;")})">Delete</button></td>
-                </tr>`;
+        expenses.forEach((exp) => {
+            const row = `<tr>
+                      <td>${exp.campus}</td>
+                      <td>${exp.date}</td>
+                      <td>${exp.house}</td>
+                      <td>${exp.point}</td>
+                      <td>${exp.rewards}</td>
+                      <td>${Number(exp.amount).toFixed(2)}</td>
+                      <td><button class='edit-btn' onclick="editExpense(${JSON.stringify(
+                exp
+            ).replace(/"/g, "&quot;")})">Edit</button></td>
+                      <td><button class='delete-btn' onclick="deleteExpense(${JSON.stringify(
+                exp
+            ).replace(/"/g, "&quot;")})">Delete</button></td>
+                    </tr>`;
 
-        expenseTableBody.innerHTML += row;
-    });
+            expenseTableBody.innerHTML += row;
+        });
+    } catch (error) {
+        console.error('Error updating dashboard:', error);
+        alert('Error updating dashboard. Please check the console for details.');
+    }
 }
 
-
 function editExpense(expense) {
-    const updatedCampus =
-        prompt("Edit Campus:", expense.campus) || expense.campus;
+    const updatedCampus = prompt("Edit Campus:", expense.campus) || expense.campus;
     const updatedHouse = prompt("Edit House:", expense.house) || expense.house;
-    const updatedPoint =
-        parseFloat(prompt("Edit Point:", expense.point)) || expense.point;
-    const updatedRewards =
-        prompt("Edit Rewards:", expense.rewards) || expense.rewards;
-    const updatedAmount =
-        parseFloat(prompt("Edit Amount:", expense.amount)) || expense.amount;
-    const updatedDate =
-        prompt("Edit Date (YYYY-MM-DD):", expense.date) || expense.date;
+    const updatedPoint = parseFloat(prompt("Edit Point:", expense.point)) || expense.point;
+    const updatedRewards = prompt("Edit Rewards:", expense.rewards) || expense.rewards;
+    const updatedAmount = parseFloat(prompt("Edit Amount:", expense.amount)) || expense.amount;
+    const updatedDate = prompt("Edit Date (DD-MM-YYYY):", expense.date) || expense.date;
 
     if (confirm("Are you sure you want to save the changes?")) {
-        const index = expense.index;
         const updatedExpense = {
-            Campus: updatedCampus,
-            Date: updatedDate,
-            House: updatedHouse,
-            Point: updatedPoint,
-            Rewards: updatedRewards,
-            Amount: updatedAmount,
+            campus: updatedCampus,
+            date: updatedDate,
+            house: updatedHouse,
+            point: updatedPoint,
+            rewards: updatedRewards,
+            amount: updatedAmount
         };
         
-        fetch(`${API}/Date/${expense.date}`, {
+        console.log('Updating expense with ID:', expense._id);
+        console.log('Updated data:', updatedExpense);
+        
+        fetch(`${DATA_API}/update/${expense._id}`, {
             method: 'PATCH',
             headers: {
-                'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                data: updatedExpense,
-            })
+            body: JSON.stringify(updatedExpense)
         })
-            .then((response) => response.json())
-            .then((data) => {
-                console.log(data)
-                fetchExpensesFromSheet();
-            });
-            
+        .then(async (response) => {
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Update failed: ${errorData.message}`);
+            }
+            return response.json();
+        })
+        .then((data) => {
+            console.log('Update successful:', data);
+            alert('Expense updated successfully!');
+            updateDashboard();
+        })
+        .catch((error) => {
+            console.error('Error updating expense:', error);
+            alert('Failed to update expense. Please try again.');
+        });
     } else {
         console.log("Edit canceled by the user.");
     }
 }
 
 
-function deleteExpenseFromSheet(expense) {
-    console.log('Index delete - ', expense);
-    fetch(`${API}/Date/${expense.date}`, {
-        method: 'DELETE',
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+async function deleteExpense(expense) {
+    try {
+        console.log('Index delete - ', expense);
+        
+        if (!expense || !expense._id) {
+            throw new Error('Invalid expense object or missing _id');
         }
-    })
-        .then((response) => response.json())
-        .then((data) => {
-            console.log(data)
+        
+        const response = await fetch(`${DATA_API}/delete/${expense._id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Delete successful:', data);
+        await updateDashboard();
+        
+    } catch (error) {
+        console.error('Error deleting expense:', error);
+    }
 }
 
 expenseForm?.addEventListener("submit", async (e) => {
@@ -233,10 +248,12 @@ expenseForm?.addEventListener("submit", async (e) => {
     const pointInput = document.getElementById("point");
     const rewardsInput = document.getElementById("rewards");
     const amountInput = document.getElementById("amount");
+    const dateInput = document.getElementById("date");
 
     if (
         !campusInput.value ||
         !houseInput.value ||
+        !rewardsInput.value ||
         isNaN(pointInput.value) ||
         isNaN(amountInput.value)
     ) {
@@ -244,24 +261,19 @@ expenseForm?.addEventListener("submit", async (e) => {
         return;
     }
 
-    const campus = campusInput.value;
-    const house = houseInput.value;
-    const point = parseFloat(pointInput.value);
-    const rewards = rewardsInput.value;
-    const amount = parseFloat(amountInput.value);
-    const date = new Date(); 
+    const newExpense = {
+        campus: campusInput.value,
+        house: houseInput.value,
+        point: parseFloat(pointInput.value),
+        rewards: rewardsInput.value,
+        amount: parseFloat(amountInput.value),
+        date: dateInput.value || new Date().toISOString().split('T')[0]
+    };
 
-    // const day = String(currentDate.getDate()).padStart(2, '0');
-    // const month = String(currentDate.getMonth() + 1).padStart(2, '0'); 
-    // const year = currentDate.getFullYear();
-
-    // const date = `${day}-${month}-${year}`;
-    // console.log("date - input : ",date);
-    const newExpense = { campus, house, point, rewards, amount, date };
     await addExpenseToSheet(newExpense);
     expenseForm.reset();
+    setCurrentDate();
     switchSection(dashboardSection);
-
 });
 
 function populateHouseDropdown() {
@@ -288,11 +300,11 @@ buttons.addExpense?.addEventListener("click", () => {
 });
 buttons.manageAdmins?.addEventListener("click", async () => {
     switchSection(manageAdminsSection);
-    await fetchExpensesFromSheet();
+    updateDashboard();
 });
 
 populateHouseDropdown();
-fetchExpensesFromSheet();
+updateDashboard();
 switchSection(dashboardSection);
 
 
@@ -307,19 +319,21 @@ logout.addEventListener("click", () => {
 });
 
 const checkAdmin = JSON.parse(localStorage.getItem("user"));
-console.log("checkAdmin 1 - ", checkAdmin.isAdmin);
+console.log("checkAdmin 1 - ", checkAdmin);
 const createAdmin = document.getElementById("add-admin");
+
+const admin_name = document.getElementById('admin-name');
+admin_name.innerText = `Welcome, ${checkAdmin.name}`;
 
 
 createAdmin.addEventListener("click", (e) => {
     e.preventDefault();
-    if (checkAdmin.isAdmin === 'TRUE') {
+    if (checkAdmin.isAdmin === true) {
         const newAdmin = document.getElementById("new-admin").value;
         console.log('newAdmin - ', newAdmin);
 
         async function getData() {
-            const response_admin = await fetch(ADMIN);
-            const data_admin = await response_admin.json();
+            const data_admin = await fetchUser();
             console.log('data_admin:', data_admin);
 
             let findUser;
@@ -330,31 +344,43 @@ createAdmin.addEventListener("click", (e) => {
                 }
             }
             console.log("findUser - ",data_admin[findUser]);
-            if (data_admin[findUser].isAdmin === 'TRUE'){
+            if (data_admin[findUser].isAdmin === true){
                 alert('User Already an admin!')
                 return;
-            }else if (!findUser) {
+            }else if (!data_admin[findUser]) {
                 alert('User should create account first.')
                 return;
             } else {
                 alert('Making Admin to user!')
             }
-
-            fetch(`${ADMIN}/email/${newAdmin}`, {
-                method: 'PATCH',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    data: {
-                        'isAdmin': "true"
+            let userId = data_admin[findUser]._id;
+            async function updateAdminStatus(userId) {
+                try {
+                    if (!userId) {
+                        throw new Error('User ID is required');
                     }
-                })
-            })
-                .then((response) => response.json())
-                .then((data) => console.log(data));
-            showAdmins();
+            
+                    const response = await fetch(`${LOGIN_API}/update/${userId}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ isAdmin: true })
+                    });
+            
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+            
+                    const data = await response.json();
+                    console.log('Update successful:', data);
+                    
+                } catch (error) {
+                    console.error('Error updating admin status:', error);
+                }
+            }
+            updateAdminStatus(userId);
+            // showAdmins();
         }
         getData();
     } else {
@@ -366,9 +392,9 @@ createAdmin.addEventListener("click", (e) => {
 async function showAdmins() {
     const admins = document.getElementById('admins');
 
-    const response_admin = await fetch(ADMIN);
+    const response_admin = await fetch(`${LOGIN_API}/getAll`);
     const data_admin = await response_admin.json();
-    const allAdmins = data_admin.filter(ele => ele.isAdmin === 'TRUE');
+    const allAdmins = data_admin.filter(ele => ele.isAdmin === true);
     console.log('allAdmins - ', allAdmins);
     admins.innerHTML = '';
     allAdmins.reverse()
@@ -390,15 +416,15 @@ remove_admin.addEventListener('click', (e) => {
     console.log(e.target.dataset.email);
     async function getData() {
 
-        const response_admin = await fetch(ADMIN);
+        const response_admin = await fetch(`${LOGIN_API}/getAll`);
         const data_admin = await response_admin.json();
         const email = e.target.dataset.email;
         console.log('data_admin:', data_admin);
-        const userEmail = data_admin.find(ele => (about.email === ele.email && ele.isAdmin === 'TRUE'));
+        const userEmail = data_admin.find(ele => (about.email === ele.email && ele.isAdmin === true));
         console.log('userEmail - ', userEmail);
 
         if (email === 'rishav@navgurukul.org') {
-            alert('Nobady can remove this Admin!')
+            alert('Nobady can remove this Admin!😂😂')
             return;
         }
 
@@ -416,28 +442,35 @@ remove_admin.addEventListener('click', (e) => {
             alert('Removing Admin!')
         }
 
-        fetch(`${ADMIN}/email/${email}`, {
-            method: 'PATCH',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                data: {
-                    'isAdmin': "false"
+        let userId = data_admin[findUser]._id;
+        async function updateAdminStatus(userId) {
+            try {
+                if (!userId) {
+                    throw new Error('User ID is required');
                 }
-            })
-        })
-            .then((response) => response.json())
-            .then((data) => console.log(data));
+        
+                const response = await fetch(`${LOGIN_API}/update/${userId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ isAdmin: false })
+                });
+        
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+        
+                const data = await response.json();
+                console.log('Update successful:', data);
+                
+            } catch (error) {
+                console.error('Error updating admin status:', error);
+            }
+        }
+        updateAdminStatus(userId);
         showAdmins();
     }
-
     getData();
-
 })
 
-
-const admin_name = document.getElementById('admin-name');
-console.log('About - ', about);
-admin_name.innerText = `Welcome, ${about.username}`;
