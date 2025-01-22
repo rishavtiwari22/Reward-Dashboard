@@ -1,4 +1,4 @@
-let ADMIN = 'http://localhost:3000/api';
+let ADMIN = 'https://login-backend-three.vercel.app/api';
 
 async function fetchRecords() {
   const response = await fetch(`${ADMIN}/getAll`);
