@@ -284,6 +284,17 @@ form button:hover {
     background-color: #d32f2f;
 }
 
+.user-logo{
+    height: 50px;
+    border-radius: 50%;
+}
+.sidebar-head{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
 .logo{
     height: 80px;
 }
