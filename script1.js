@@ -1,6 +1,6 @@
 
-let LOGIN_API = "http://localhost:3000/api";
-let DATA_API = "http://localhost:3001/api";
+let LOGIN_API = "https://login-backend-three.vercel.app/api";
+let DATA_API = "https://data-backend-phi.vercel.app/api";
 
 const dashboardSection = document.getElementById("dashboard-section");
 const addExpenseSection = document.getElementById("add-expense-section");
