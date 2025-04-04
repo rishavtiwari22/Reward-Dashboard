@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sheet to MongoDB</title>
+    <link rel="stylesheet" href="data.css">
+</head>
+
+<body>
+    <h2>Google Sheet Data to MongoDB</h2>
+    <input type="text" id="sheetUrl" placeholder="Enter Google Sheet URL">
+    <input type="text" id="sheetName" placeholder="Enter Sheet Name (e.g., Sheet1)">
+    <button onclick="sendSheetData()">Upload Data</button>
+    <p id="message"></p>
+
+    <h2>Filter Student Data</h2>
+    <select id="houseFilter">
+        <option value="">Select House</option>
+        <option value="Malhaar">Malhaar House</option>
+        <option value="Bhairav">Bhairav House</option>
+        <option value="Bageshree">Bageshree House</option>
+    </select>
+    <select id="campusFilter">
+        <option value="">Select Campus</option>
+        <option value="Jashpur">Jashpur Campus</option>
+        <option value="Udaipur">Udaipur Campus</option>
+        <option value="Pune">Pune Campus</option>
+        <option value="Raipur">Raipur Campus</option>
+        <option value="Kishanganj">Kishanganj Campus</option>
+        <option value="Sarjapur">Sarjapur Campus</option>
+        <option value="Dantewada">Dantewada Campus</option>
+        <option value="Himachal">Himachal Campus</option>
+        <option value="Dharamashala">Dharmashala Campus</option>
+    </select>
+    <button onclick="applyFilter()">Filter</button>
+
+    <br>
+    <h2>Student Points Table</h2>
+    <div class="table-container">
+        <table id="studentTable">
+            <thead>
+                <tr>
+                    <th>Students Name</th>
+                    <th>House Name</th>
+                    <th>Campus Name</th>
+                    <th>Additional Effort (+1)</th>
+                    <th>Supporting Peers in Academic (+2)</th>
+                    <th>Supporting a Smaller Group in Learning (+3)</th>
+                    <th>Support by Taking a Session for a Large Group (+4)</th>
+                    <th>Total Academic Points</th>
+                    <th>Additional Effort in Life Skills (+1)</th>
+                    <th>Supporting Peers in Life Skills (+2)</th>
+                    <th>Supporting the Community in Life Skills (+4)</th>
+                    <th>Efforts to Learn English (+2)</th>
+                    <th>Competition Winners (Group) (+5)</th>
+                    <th>Council Activeness (-2)</th>
+                    <th>Solving a Problem (+3)</th>
+                    <th>Task Winners (Individual) (+2)</th>
+                    <th>Getting a Job (+15)</th>
+                    <th>Total Culture Points</th>
+                    <th>Total of Academic and Culture</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data will be inserted here dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function sendSheetData() {
+            const sheetUrl = document.getElementById("sheetUrl").value.trim();
+            const sheetName = document.getElementById("sheetName").value.trim();
+            const messageElement = document.getElementById("message");
+
+            if (!sheetUrl || !sheetUrl.includes("docs.google.com/spreadsheets")) {
+                messageElement.innerText = "⚠️ Please enter a valid Google Sheet URL!";
+                return;
+            }
+
+            if (!sheetName) {
+                messageElement.innerText = "⚠️ Please enter a Sheet Name!";
+                return;
+            }
+
+            messageElement.innerText = "⏳ Uploading data to MongoDB...";
+            console.log("Sending data to backend:", { sheetUrl, sheetName });
+
+            fetch("https://reward-dashboard-backend.vercel.app/fetch-sheet-data", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sheetUrl, sheetName })
+            })
+                .then(async response => {
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Backend response:", data);
+                    messageElement.innerText = data.message ? `✅ ${data.message}` : "❌ Error: Unable to upload data.";
+                })
+                .catch(error => {
+                    console.error("Error uploading data:", error);
+                    messageElement.innerText = `❌ Error: ${error.message}`;
+                });
+        }
+
+        let studentsData = [];
+        document.addEventListener("DOMContentLoaded", function () {
+            fetch("https://reward-dashboard-backend.vercel.app/api/students")
+                .then(async response => {
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Fetched student data:", data);
+                    studentsData = data; // Store the fetched data in a global variable
+                    displayAllStudents(data); // Function to display all students
+                    displayTopHouses(data); // Function to display top-performing houses
+                })
+                .catch(error => console.error("Error fetching student data:", error));
+        });
+
+        function displayAllStudents(data) {
+            const tableBody = document.querySelector("#studentTable tbody");
+            tableBody.innerHTML = "";
+
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = "<tr><td colspan='19'>No data available</td></tr>";
+                return;
+            }
+
+            data.forEach(student => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${student.studentName}</td>
+                    <td>${student.houseName}</td>
+                    <td>${student.campusName}</td>
+                    <td>${student.additionalEffort}</td>
+                    <td>${student.supportingPeersAcademics}</td>
+                    <td>${student.supportingSmallerGroup}</td>
+                    <td>${student.supportLargeGroup}</td>
+                    <td>${student.totalAcademicPoints}</td>
+                    <td>${student.additionalEffortsLifeSkills}</td>
+                    <td>${student.supportingPeersLifeSkills}</td>
+                    <td>${student.supportingCommunityLifeSkills}</td>
+                    <td>${student.effortsToLearnEnglish}</td>
+                    <td>${student.competitionWinners}</td>
+                    <td>${student.councilActiveness}</td>
+                    <td>${student.solvingProblem}</td>
+                    <td>${student.taskWinners}</td>
+                    <td>${student.gettingAJob}</td>
+                    <td>${student.totalCulturePoints}</td>
+                    <td>${student.totalAcademicAndCulture}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function displayTopHouses(data) {
+            const campusGroups = {};
+
+            // Grouping data by campus & house, summing their total points
+            data.forEach(student => {
+                const campus = student.campusName;
+                const house = student.houseName;
+                const totalPoints = student.totalAcademicAndCulture;
+
+                if (!campusGroups[campus]) {
+                    campusGroups[campus] = {};
+                }
+
+                if (!campusGroups[campus][house]) {
+                    campusGroups[campus][house] = 0;
+                }
+
+                campusGroups[campus][house] += totalPoints;
+            });
+
+            // Finding the highest-scoring house per campus
+            const topHouses = Object.keys(campusGroups).map(campus => {
+                const houses = campusGroups[campus];
+                const topHouse = Object.keys(houses).reduce((top, house) => {
+                    return houses[house] > houses[top] ? house : top;
+                });
+
+                return { campus, house: topHouse, totalPoints: houses[topHouse] };
+            });
+
+            // Updating the Top Houses table
+            const topHousesBody = document.createElement("tbody");
+            topHouses.forEach(entry => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${entry.campus}</td>
+                    <td>${entry.house}</td>
+                    <td>${entry.totalPoints}</td>
+                `;
+                topHousesBody.appendChild(row);
+            });
+
+            const topHousesTable = document.createElement("table");
+            topHousesTable.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Campus Name</th>
+                        <th>Top House</th>
+                        <th>Total Points</th>
+                    </tr>
+                </thead>
+            `;
+            topHousesTable.appendChild(topHousesBody);
+            document.body.appendChild(topHousesTable);
+        }
+
+        function applyFilter() {
+            const selectedHouse = document.getElementById("houseFilter").value;
+            const selectedCampus = document.getElementById("campusFilter").value;
+
+            const filteredData = studentsData.filter(student => {
+                return (!selectedHouse || student.houseName === selectedHouse) &&
+                    (!selectedCampus || student.campusName === selectedCampus);
+            });
+
+            displayAllStudents(filteredData); // Update table with filtered data
+        }
+    </script>
+
+
+
+</body>
+
+</html>
