@@ -68,8 +68,126 @@
             </tbody>
         </table>
     </div>
+    <br>
+
+
 
     <script>
+
+
+        function displayCampusHousePoints(data) {
+            // Grouping data by campus and house
+            const campusGroups = {};
+
+            data.forEach(student => {
+                const campus = student.campusName;
+                const house = student.houseName;
+                const totalPoints = student.totalAcademicAndCulture;
+
+                if (!campusGroups[campus]) {
+                    campusGroups[campus] = {};
+                }
+
+                if (!campusGroups[campus][house]) {
+                    campusGroups[campus][house] = 0;
+                }
+
+                campusGroups[campus][house] += totalPoints;
+            });
+
+            // Create container div
+            const container = document.createElement("div");
+            container.className = "campus-house-summary";
+            container.style.marginTop = "30px";
+
+            const heading = document.createElement("h2");
+            heading.innerText = "Total Campus Points (House-wise)";
+            container.appendChild(heading);
+
+            // For each campus
+            Object.entries(campusGroups).forEach(([campus, houses]) => {
+                const campusDiv = document.createElement("div");
+                campusDiv.className = "campus-block";
+                campusDiv.style.marginBottom = "20px";
+
+                const campusHeading = document.createElement("h3");
+               
+                campusDiv.appendChild(campusHeading);
+
+                const table = document.createElement("table");
+                table.style.width = "100%";
+                table.style.borderCollapse = "collapse";
+                table.style.marginBottom = "10px";
+
+                const thead = document.createElement("thead");
+                thead.innerHTML = `
+            <tr>
+                <th style="border: 1px solid #ddd; padding: 8px;">${campus}</th>
+                <th style="border: 1px solid #ddd; padding: 8px;">Total Points</th>
+            </tr>
+        `;
+                table.appendChild(thead);
+
+                const tbody = document.createElement("tbody");
+
+                Object.entries(houses).forEach(([house, points]) => {
+                    const row = document.createElement("tr");
+                    row.style.cursor = "pointer";
+
+                    row.innerHTML = `
+                <td style="border: 1px solid #ddd; padding: 8px;">${house}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${points}</td>
+            `;
+
+                    // Tooltip div
+                    const tooltip = document.createElement("div");
+                    tooltip.className = "tooltip-box";
+                    tooltip.style.display = "none";
+                    tooltip.style.position = "absolute";
+                    tooltip.style.backgroundColor = "#f9f9f9";
+                    tooltip.style.border = "1px solid #ccc";
+                    tooltip.style.padding = "8px";
+                    tooltip.style.borderRadius = "6px";
+                    tooltip.style.boxShadow = "0px 2px 6px rgba(0,0,0,0.2)";
+                    tooltip.style.zIndex = 1000;
+
+                    document.body.appendChild(tooltip);
+
+                    row.addEventListener("mouseover", (event) => {
+                        const topStudents = data
+                            .filter(s => s.campusName === campus && s.houseName === house)
+                            .sort((a, b) => b.totalAcademicAndCulture - a.totalAcademicAndCulture)
+                            .slice(0, 3);
+
+                        tooltip.innerHTML = `<strong>Top 3 Students</strong><br>` +
+                            topStudents.map(s => `${s.studentName} - ${s.totalAcademicAndCulture} pts`).join("<br>");
+
+                        tooltip.style.display = "block";
+                        tooltip.style.left = (event.pageX + 10) + "px";
+                        tooltip.style.top = (event.pageY + 10) + "px";
+                    });
+
+                    row.addEventListener("mousemove", (event) => {
+                        tooltip.style.left = (event.pageX + 10) + "px";
+                        tooltip.style.top = (event.pageY + 10) + "px";
+                    });
+
+                    row.addEventListener("mouseleave", () => {
+                        tooltip.style.display = "none";
+                    });
+
+                    tbody.appendChild(row);
+                });
+
+                table.appendChild(tbody);
+                campusDiv.appendChild(table);
+                container.appendChild(campusDiv);
+            });
+
+            // Append to the document body or a target container
+            document.body.appendChild(container);
+        }
+
         function sendSheetData() {
             const sheetUrl = document.getElementById("sheetUrl").value.trim();
             const sheetName = document.getElementById("sheetName").value.trim();
@@ -125,6 +243,7 @@
                     studentsData = data; // Store the fetched data in a global variable
                     displayAllStudents(data); // Function to display all students
                     displayTopHouses(data); // Function to display top-performing houses
+                    displayCampusHousePoints(data);
                 })
                 .catch(error => console.error("Error fetching student data:", error));
         });
